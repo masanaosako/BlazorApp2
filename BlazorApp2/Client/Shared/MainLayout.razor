@@ -1,0 +1,51 @@
+﻿@inherits LayoutComponentBase
+
+@*<div class="page">
+    <div class="sidebar">
+            <NavMenu />
+        </div>
+
+        <main>
+            <div class="top-row px-4">
+                <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
+            </div>
+
+            <article class="content px-4">
+                @Body
+            </article>
+        </main>
+</div>*@
+
+<div class="row">
+    <div class="col">
+        <RadzenLayout>
+            <RadzenHeader>
+                <div class="d-flex align-items-center">
+                    <RadzenSidebarToggle Click="@(() => sidebarExpanded = !sidebarExpanded)" />
+                    <RadzenLabel Text="iGoods" />
+                </div>
+            </RadzenHeader>
+            <RadzenSidebar @bind-Expanded="@sidebarExpanded">
+                <RadzenPanelMenu>
+                    <RadzenPanelMenuItem Text="Leased" Icon="desktop_mac" Path="lease" />
+                    <RadzenPanelMenuItem Text="Purchased" Icon="smartphone" Path="purchased" />
+                    <RadzenPanelMenuItem Text="Token" Icon="generating_tokens" Path="token" />
+                    <RadzenPanelMenuItem Text="Network" Icon="router" Path="network" />
+                    <RadzenPanelMenuItem Text="Update History" Icon="list" Path="history" />
+                </RadzenPanelMenu>
+            </RadzenSidebar>
+            <RadzenBody>
+                <div class="p-2">
+                    @Body
+                </div>
+            </RadzenBody>
+        </RadzenLayout>
+    </div>
+</div>
+
+<RadzenDialog />
+<RadzenNotification />
+
+@code {
+    private bool sidebarExpanded = false;
+}

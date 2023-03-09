@@ -1,0 +1,222 @@
+﻿@page "/history"
+
+@using BlazorApp2.Shared.Models
+@using System.Linq
+@using CsvHelper
+@using CsvHelper.Configuration
+@using System.Globalization
+@using System.IO;
+@using System.Net.Http;
+@using System.Threading.Tasks;
+
+
+@inject HttpClient Http
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject IJSRuntime JS
+
+
+<RadzenText TextStyle="TextStyle.DisplayH4">
+    <RadzenIcon Icon="list" />
+    Update History
+</RadzenText>
+
+
+@if (assets == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col pt-2">
+                <RadzenAccordion Multiple="true">
+                    <Items>
+
+                        @*データグリッドセクション*@
+                        <RadzenAccordionItem Text="Update History" Icon="list" Selected="true" class="py-2">
+                            <div class="row">
+                                <div class="col py-2">
+                                    @*カテゴリ選択*@
+                                    <RadzenDropDown TValue="string" Data=@categories Value=@selectedCategory Change=@(args => OnCategoryChanged(args)) />
+                                </div>
+                                <div class="col-auto py-2">
+                                    @*エクスポートボタン*@
+                                    <RadzenButton Text="Download" Click=@(args => DownloadCsv()) class="col-auto" />
+                                </div>
+                            </div>
+                            
+                            @*データグリッド*@
+                            <RadzenDataGrid AllowColumnPicking="true" AllowColumnResize="true" ColumnWidth="150px" Style="max-height: 400px;" 
+                                            AllowPaging="false" AllowVirtualization="true" VirtualizationOverscanCount="30"
+                                            AllowFiltering="true" FilterMode="FilterMode.Simple" LogicalFilterOperator="LogicalFilterOperator.And" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                            AllowSorting="true" AllowMultiColumnSorting="true" ShowMultiColumnSortingIndex="true"
+                                            RowRender="@OnRowRender" CellRender="@OnCellRender"
+                                            @ref="grid" Data="@assets" TItem="AssetUsage">
+
+                                @*データグリッドカラム*@
+                                <Columns>
+                                    <RadzenDataGridColumn TItem="AssetUsage" Property="ID" Title="ID" SortOrder="SortOrder.Descending" OrderIndex="1" Filterable="false" Frozen="true" />
+
+                                    <RadzenDataGridColumn TItem="AssetUsage" Property="AssetCode" Title="機体番号" Frozen="true" />
+
+                                    <RadzenDataGridColumn TItem="AssetUsage" Property="AssetMaster.SerialNumber" Title="シリアル番号">
+                                        <Template Context="assetUsage">
+                                            @assetUsage.AssetMaster.SerialNumber
+                                        </Template>
+                                    </RadzenDataGridColumn>
+
+                                    <RadzenDataGridColumn TItem="AssetUsage" Property="State" Title="ステータス" />
+
+                                    <RadzenDataGridColumn TItem="AssetUsage" Property="UpdateDate" Title="更新日時" SortOrder="SortOrder.Descending" OrderIndex="2"  />
+
+                                    <RadzenDataGridColumn TItem="AssetUsage" Property="Fault" Title="故障" />
+
+                                    <RadzenDataGridColumn TItem="AssetUsage" Property="AssetMaster.ReferenceID" Title="リース番号">
+                                        <Template Context="assetUsage">
+                                            @assetUsage.AssetMaster.ReferenceID
+                                        </Template>
+                                    </RadzenDataGridColumn>
+
+                                    <RadzenDataGridColumn TItem="AssetUsage" Property="AssetMaster.Agency" Title="リース会社">
+                                        <Template Context="assetUsage">
+                                            @assetUsage.AssetMaster.Agency
+                                        </Template>
+                                    </RadzenDataGridColumn>
+
+                                    <RadzenDataGridColumn TItem="AssetUsage" Property="AssetMaster.ExpireDate" Title="リース期限">
+                                        <Template Context="assetUsage">
+                                            @assetUsage.AssetMaster.ExpireDate
+                                        </Template>
+                                    </RadzenDataGridColumn>
+
+                                    <RadzenDataGridColumn TItem="AssetUsage" Property="AssetMaster.Fee" Title="リース料金">
+                                        <Template Context="assetUsage">
+                                            @assetUsage.AssetMaster.Fee
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                </Columns>
+                            </RadzenDataGrid>
+                        </RadzenAccordionItem>
+                    </Items>
+                </RadzenAccordion>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private IList<AssetUsage>? assets;
+    private RadzenDataGrid<AssetUsage>? grid;
+
+    protected override async Task OnInitializedAsync()
+    {
+        assets = await Http.GetFromJsonAsync<List<AssetUsage>>("api/asset/history");
+    }
+
+
+    // データの種類選択
+    private List<string> categories = new() { "leased", "purchased", "all" };
+    private string selectedCategory = "leased";
+
+    private async Task OnCategoryChanged(object value)
+    {
+        assets = await Http.GetFromJsonAsync<List<AssetUsage>>("api/asset/history");
+        if (assets != null)
+        {
+            switch (value)
+            {
+                case "leased":
+                    assets = assets.Where(a => a.AssetCode.Contains("000")).ToList();
+                    break;
+
+                case "purchased":
+                    assets = assets.Where(a => a.AssetCode.StartsWith("C-")).ToList();
+                    break;
+
+                default:
+                    break;
+            }
+            grid.Reload();
+        }
+    }
+
+    // セルのハイライト関連
+    List<AssetUsage>? sameAssets;
+    private AssetUsage? previousData;
+    int index = 0;
+    int rowNum = 0;
+
+    private void OnRowRender(RowRenderEventArgs<AssetUsage> args)
+    {
+        rowNum++;
+        Console.WriteLine($"rowNum: {rowNum}");
+
+        sameAssets = assets.Where(a => a.AssetCode == args.Data.AssetCode).ToList();
+        Console.WriteLine($"sameAssets item count: {sameAssets.Count()}");
+
+        index = sameAssets.IndexOf(args.Data);
+        Console.WriteLine($"index of sameAssets: {index}");
+
+        if (index > 0)
+        {
+            previousData = sameAssets[index - 1];
+        }
+    }
+
+    private void OnCellRender(DataGridCellRenderEventArgs<AssetUsage> args)
+    {
+        if (index > 0 && previousData != null && args.Data != null && args.Column != null)
+        {
+            string columnName = args.Column.Property;
+            Console.WriteLine($"columnName: {columnName}");
+
+            var currentValue = args.Column.GetValue(args.Data);
+            Console.WriteLine($"currentValue: {currentValue}");
+
+            var previousValue = args.Column.GetValue(previousData);
+            Console.WriteLine($"previousValue: {previousValue}");
+
+            if (columnName != null && !currentValue.Equals(previousValue))
+            {
+                args.Attributes.Add("class", "rz-background-color-secondary-lighter");
+            }
+        }
+    }
+
+    // エクスポート関連
+    public async Task DownloadCsv()
+    {
+        //IEnumerable<AssetUsage> data = grid.Data;
+        var data = grid.View.AsEnumerable<AssetUsage>().Select(v => new
+        {
+            AssetCode = v.AssetCode,
+            State = v.State,
+            Fault = v.Fault,
+            UpdateDate = v.UpdateDate,
+            SerialNumber = v.AssetMaster.SerialNumber
+        });
+
+        var configuration = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            HeaderValidated = null,
+            MissingFieldFound = null,
+            IgnoreBlankLines = false,
+        };
+
+        using (var memoryStream = new MemoryStream())
+        using (var writer = new StreamWriter(memoryStream))
+        using (var csv = new CsvWriter(writer, configuration))
+        {
+            csv.Context.RegisterClassMap<AssetUsageMap>();
+            csv.WriteRecords(data);
+            writer.Flush();
+            memoryStream.Position = 0;
+            string fileName = "export_leased_assets.csv";
+            using var streamRef = new DotNetStreamReference(memoryStream);
+            await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+        }
+    }
+    }
+

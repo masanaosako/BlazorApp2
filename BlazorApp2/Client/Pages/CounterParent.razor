@@ -1,0 +1,22 @@
+﻿@page "/counter"
+
+<PageTitle>CounterParent</PageTitle>
+
+<RadzenTabs Change=@OnChange TabPosition="TabPosition.Top" RenderMode="TabRenderMode.Client">
+    <Tabs>
+        <RadzenTabsItem Text="Child1">
+            <Child1/>
+        </RadzenTabsItem>
+        <RadzenTabsItem Text="Child2">
+            <Child2/>
+        </RadzenTabsItem>
+    </Tabs>
+</RadzenTabs>
+
+@code {
+    private void OnChange()
+    {
+        Console.WriteLine("Change!!!");
+    }
+}
+

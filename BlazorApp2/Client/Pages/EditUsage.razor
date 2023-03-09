@@ -1,0 +1,111 @@
+﻿@page "/editusage/{ID:int?}"
+
+@using Microsoft.Extensions.Logging
+@using System.ComponentModel.DataAnnotations
+@using BlazorApp2.Shared.Models
+@using Microsoft.EntityFrameworkCore
+
+@inject ILogger<EditUsage> Logger
+@inject HttpClient Http
+@inject DialogService dialogService
+
+
+@if (updatedUsage == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="@updatedUsage" OnValidSubmit="@HandleValidSubmit" OnInvalidSubmit="@HandleInvalidSubmit">
+        <DataAnnotationsValidator />
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-md-4">
+                    <RadzenLabel Text="機体番号" />
+                </div>
+                <div class="col">
+                    <RadzenTextBox Style="display: block" Name="AssetCode" @bind-value=@updatedUsage.AssetCode class="w-100" />
+                    <ValidationMessage For="() => updatedUsage.AssetCode" />
+                </div>
+            </div>
+
+            <div class="row mb-2">
+                <div class="col-md-4">
+                    <RadzenLabel Text="ステータス" />
+                </div>
+                <div class="col">
+                    <RadzenDropDown Style="display: block" Name="State" TValue="string" @bind-Value=@updatedUsage.State Data=@StateList />
+                    <ValidationMessage For="() => updatedUsage.State" />
+                </div>
+            </div>
+
+            <div class="row mb-2">
+                <div class="col-md-4">
+                    <RadzenLabel Text="故障中" />
+                </div>
+                <div class="col pt-3">
+                    <RadzenCheckBox Style="display: block" Name="Fault" TValue="bool?" @bind-value=@updatedUsage.Fault Disabled=@(updatedUsage.State == "Active") />
+                    <ValidationMessage For="() => updatedUsage.Fault" />
+                </div>
+            </div>
+
+            <div class="row mb-2">
+                <div class="col-md-4">
+                    <RadzenLabel Text="更新日" />
+                </div>
+                <div class="col">
+                    <RadzenDatePicker Style="display: block" Name="UpdateDate" DateFormat="MM/dd/yyyy" TValue="DateTime?" @bind-value=@updatedUsage.UpdateDate class="w-100" />
+                    <ValidationMessage For="() => updatedUsage.UpdateDate" />
+                </div>
+            </div>
+
+            <div class="row my-4">
+                <div class="col">
+                    <RadzenButton ButtonType="ButtonType.Submit" Text="Submit" />
+                </div>
+            </div>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int? ID { get; set; }
+
+    private AssetUsage? updatedUsage;
+    private List<string> StateList = new List<string>() { "Active", "Backstock", "Retired" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var currentUsage = await Http.GetFromJsonAsync<AssetUsage>($"api/asset/usage/{ID}");
+        if (currentUsage != null)
+        {
+            updatedUsage = new()
+            {
+                AssetCode = currentUsage.AssetCode,
+                State = currentUsage.State,
+                Fault = currentUsage.Fault,
+                UpdateDate = currentUsage.UpdateDate,
+            };
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        Logger.LogInformation("OnValidSubmit called");
+
+        if (updatedUsage != null)
+        {
+            await Http.PostAsJsonAsync<AssetUsage>("api/asset/usage", updatedUsage);
+        }
+        dialogService.Close();
+    }
+
+    //private async Task<I>
+
+    private void HandleInvalidSubmit()
+    {
+        Logger.LogInformation("OnInvalidSubmit called");
+    }
+}
+
